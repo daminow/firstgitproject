@@ -1,0 +1,43 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [ main ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Build Docker image
+        run: docker build -t dockerwebapp .
+
+  test:
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - uses: actions/checkout@v3
+      - name: Build and test
+        run: |
+          docker build -t dockerwebapp .
+          docker run -d -p 8080:80 --name testsimplewebapp dockerwebapp
+          sleep 10
+          if curl -s http://127.0.0.1:8080 | grep "Simple web app"; then
+            echo "Page OK"
+          else
+            echo "Page not reachable"
+            exit 1
+          fi
+          docker stop testsimplewebapp
+          docker rm testsimplewebapp
+
+  deploy:
+    runs-on: ubuntu-latest
+    needs: test
+    steps:
+      - uses: actions/checkout@v3
+      - name: Deploy container
+        run: |
+          docker build -t dockerwebapp .
+          docker run -d -p 80:80 --name simpleweb dockerwebapp
+          echo "Container is running."
